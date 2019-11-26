@@ -4,12 +4,12 @@
 # Descrizione
 *RaspberryAP* ti permette di creare un access point in maniera facile e veloce sul tuo Raspberry!
 Ciò che lo rende diverso da tutti gli altri simili è che qui è possibile *impostare delle reti
-wifi in cui far collegare il nostro raspberry pi se si trovasse nelle vicinanze della suddetta
-rete*. In caso contrario, *RaspberryAP* si trasformerà automaticamente in un router
-dandoci comunque la possibilità di collegarci ad esso. Inoltre questo sistema analizza anche la
-potenza della nostra rete in cui *RaspberryAP* dovrà connettersi: questo significa che se anche stiamo
-nel raggio d'azione della nostra rete ma il "segnale" non è abbastanza ottimale per il collegamento,
-*RaspberryAP* la ignorerà è creerà un access point in modo da darci comunque la possibilità di connetterci ad esso.
+wifi in cui far collegare il nostro raspberry pi nel caso ci si trovasse nelle vicinanze*.
+In caso contrario, *RaspberryAP* si trasformerà automaticamente in un router dandoci comunque la
+possibilità di collegarci ad esso. Inoltre questo sistema analizza anche la potenza della rete in
+cui *RaspberryAP* dovrà connettersi: questo significa che se stiamo nel raggio d'azione dell' AP ma il
+"segnale" non è abbastanza ottimale per il collegamento, *RaspberryAP* la ignorera' e al suo posto
+creera' un access point.
 
 # Dipendenze
 
@@ -28,24 +28,22 @@ Installare le dipendenze con:
 
 # Configurazione
 
-RaspberryAP necessita di un file di configurazione 'raspberryap.conf' collocato in '/etc'.
+RaspberryAP necessita di un file di configurazione '*raspberryap.conf*' collocato in ```/etc```.
 Le linee che iniziano con uno spazio o un '#' saranno ignorate.
 Le keyword che andranno nel file di configurazione sono:
 
- **Obbligatori**
+| Keyword | Descrizione |
+| --- | --- |
+|**INTERFACE**|***Interfaccia da utilizzare per il collegamento/creazione dell'access point***|
+|**ESSID**|***ESSID da assegnare all'access point che RaspberryAP creerà***|
+|**CHANNEL**|Canale dell'access point creato. Se non impostato, il canale verrà scelto in maniera casuale*
+|**WPA**|Password da utilizzare per la creazione dell'access point. Anche se opzionale, SE NE CONSIGLIA L'USO*
+|**TYPE_ESSID**|Valore di visiblita' dell'ESSID dell'access point. '0' l' AP sarà visibile, '1' l'AP avrà l'ESSID nascosto*|
+|**ESSID_CHECK**|Tutti gli AP a cui il RaspberryAP dovra' collegarsi. In caso contrario verra' creato un AP. I vari AP vanno suddivisi con una ```,```. *Esempio:* ```ESSID_CHECK=Router1:/etc/wparouter.conf,Router2:/etc/wparouter2.conf,...```*|
+|**RX_MAX**|Valore intero. Specifica il minimo valore che il segnale dell AP, a cui ci colleghiamo, deve avere(specificati in 'ESSID_CHECK'). Il valore di default è 68dbm. Se il valore e' maggiore(e quindi sinonimo di cattiva qualità della connessione) il suddetto ESSID verrà ignorato|
+|**FORCE_RESCAN**|Forza la riscansione. Il valore deve essere un numero intero che rappresentera' i minuti di "pausa" prima di ogni scansione|
 
-- *INTERFACE*=*Interfaccia da utilizzare per il collegamento/creazione dell'access point*
-- *ESSID*=*Nome da assegnare all'access point che RaspberryAP creerà*
-
- **Opzionali**
-
-- CHANNEL=*Imposta il canale dell'access point appena creato. Se non impostata, il canale verrà scelto in maniera randomica*
-- WPA=*Password da utilizzare per la creazione dell'access point. Anche se opzionale, SE NE CONSIGLIA L'USO*
-- TYPE_ESSID=*Valore numerico di impostazione dell'ESSID dell'access point. Se impostato a '0' il nostro AP sarà visibile anche agli altri dispositivi mentre se impostato a '1' il nostro AP avrà l'ESSID nascosto e quindi non visibile agli altri dispositivi*
-- ESSID_CHECK=*Qui andranno tutti gli ESSID che RaspberryAP controllerà prima di creare un access point in caso non ne trovasse nemmeno uno. La forma con cui gli essid vanno scritti è "*ESSID_CHECK=**PRIMO_ESSID**:/FILE/DI/WPA/CREATO/CON/WPAPASSPHRASE,**SECONDO_ESSID**:ecc..*". Il file di connessione va creato con wpa_passphrase e infine bisogna specificare il percorso di quest'ultimo nel file di configurazione. Esempio: 'ESSID_CHECK=router:/etc/wparouter.conf,router2:/etc/wparouter2.conf ...'*
-- RX_MAX=*Valore numerico che imposta un riferimento del valore di ricezione del segnale dell'access point per il collegamento con uno degli ESSID specificati in 'ESSID_CHECK'. Il suo valore di default è 68dbm. Quindi se ci si trova con un ESSID di cui il segnale è maggiore di 68dbm(e quindi sinonimo di cattiva qualità della connessione) il suddetto ESSID verrà ignorato.*
-
-**Tutte le keyword dovranno essere in maiuscolo!**
+> ***Le keyword devono essere in maiuscolo!***
 
 # Installazione
 
@@ -55,23 +53,24 @@ Digitare da utente *root*:
    ./install.sh
 ```
 
-Questo crereà un servizio usando il sistema degli rc.d.
+Questo creerà un servizio usando il sistema degli rc.d.
 
 # Utilizzo
 
-Dopo l'installazione è necessario riavviare per avere già tutto in funzione. Inoltre per vedere lo stato, digitate:
+Per vedere lo stato, digitate:
 
 ```
    service raspberryap status
 ```
 
-e per controllare che tutto fili liscio(compreso la sintassi del file di configurazione), digitate:
+Per controllare solo il file di configurazione (compreso la sintassi del file), digitate:
 
 ```
-   service raspberryap check
+   service raspberryap check_conf
 ```
 
-in caso di risposta 'OK' significa che tutto è corretto, altrimenti terminerà con un stato di uscita 1(errore) e il relativo errore.
+Se non viene riportato nulla, significa che tutto è corretto.
+In caso contrario, terminerà con uno stato di uscita pari a '1'(errore) e il relativo errore.
 
 # Donazioni
 

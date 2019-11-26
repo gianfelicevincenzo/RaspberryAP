@@ -23,9 +23,4 @@ chown root:root /etc/init.d/raspberryap
 update-rc.d raspberryap defaults
 systemctl enable raspberryap
 
-echo "Creazione del file di configurazione basilare"
-echo -e "INTERFACE=wlan0\nESSID=RaspberryAP\nCHANNEL=10\nTYPE_ESSID=0\n# PASSWORD DI PROVA. CAMBIALA!\nWPA=12345678" > /etc/raspberryap.conf
-
-echo "Completato. Si consiglia di modificare il file di configurazione '/etc/raspberryap.conf'"
-
 exit 0

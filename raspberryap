@@ -6,285 +6,341 @@
 # Default-Start: 2 3 4 5
 # Default-Stop: 0 1 6
 #### END INIT INFO
+set -u
 
-CONFIG='/etc/raspberryap.conf'
-KEY_WORD=( 'INTERFACE' 'TYPE_ESSID' 'ESSID' 'WPA' 'CHANNEL' 'ESSID_CHECK' 'RX_MAX' )
-MAX_CHANNEL=14
-WPA_FILE=""
-ESSID_CHECK=()
+readonly F_CONFIG='/etc/raspberryap.conf'
+
+readonly F_CONFIG_DIR='/tmp/raspberryap'
+mkdir $F_CONFIG_DIR &>/dev/null
+
+readonly F_CONFIG_TMP="$F_CONFIG_DIR/tmp"
+mkdir $F_CONFIG_TMP &>/dev/null
+rm -rf $F_CONFIG_TMP/*
+
+readonly F_CONFIG_HOSTAPD="$F_CONFIG_DIR/hostapd.conf"
+readonly F_CONFIG_DNSMASQ="$F_CONFIG_DIR/dnsmasq.conf"
+
+readonly F_HOSTAPD_LOG="$F_CONFIG_TMP/hostapd.log"
+readonly F_TMP_CONFIG="$F_CONFIG_TMP/raspberryap.tmp"
+
+readonly MAX_CHANNEL=13
+readonly KEY_WORD=('INTERFACE' 'TYPE_ESSID' 'ESSID' 'WPA' 'CHANNEL' 'ESSID_CHECK' 'RX_MAX' 'FORCE_RESCAN')
+
 INTERFACE=""
-TYPE_ESSID="0"
-RX_MAX=68
+ESSID_CHECK=()
+WPA_FILE=""
+CHANNEL="$(($(($RANDOM % $MAX_CHANNEL)) + 1))"
 ESSID_AP=""
+TYPE_ESSID=0
 WPA=""
-CHANNEL="$(($(($RANDOM%11))+1))"
+RX_MAX=68
+FORCE_RESCAN=0
 
 function flush_interface() {
-	rfkill unblock all
-   dhclient -r $INTERFACE
-   ifdown $INTERFACE &> /dev/null
-	ifconfig $INTERFACE down &> /dev/null
-	ip addr flush dev $INTERFACE
-	ifconfig $INTERFACE up &> /dev/null
+   rfkill unblock all
+   dhclient -r $INTERFACE &>/dev/null
+   killall -g wpa_supplicant &>/dev/null
+   ifdown $INTERFACE &>/dev/null
+   ifconfig $INTERFACE down &>/dev/null
+   ip addr flush dev $INTERFACE
+   ifconfig $INTERFACE up &>/dev/null
 }
 
 function kill_service() {
-	service dnsmasq stop &> /dev/null
-   service hostapd stop &> /dev/null
-	killall -g dnsmasq &> /dev/null
-	killall -g hostapd &> /dev/null
+   service NetworkManager stop &>/dev/null
+   service wicd stop &>/dev/null
+   service dnsmasq stop &>/dev/null
+   service hostapd stop &>/dev/null
+   killall -g dnsmasq &>/dev/null
+   killall -g hostapd &>/dev/null
 }
 
 function help() {
-   echo "Usage: $0 check|start|stop"
+   echo "Usage: $0 check_conf|start|stop"
 }
 
 function check_dependencies() {
-   if ! command -v rfkill &> /dev/null || ! command -v hostapd &> /dev/null || ! command -v dnsmasq &> /dev/null || ! command -v iw &> /dev/null || ! command -v iwconfig &> /dev/null || ! command -v wpa_supplicant &> /dev/null; then
+   if ! command -v rfkill &>/dev/null || ! command -v hostapd &>/dev/null || ! command -v dnsmasq &>/dev/null || ! command -v iw &>/dev/null || ! command -v iwconfig &>/dev/null || ! command -v wpa_supplicant &>/dev/null; then
       echo "Errore. Mancano alcune dipendenze"
       exit 1
    fi
 }
 
 function check_file_config() {
-   if [ ! -f /etc/raspberryap.conf ]; then
-      echo "File di configurazione '/tmp/raspberryap' non trovato"
+   if [ ! -f $F_CONFIG ]; then
+      echo "File di configurazione '$F_CONFIG' non trovato"
       exit 1
    fi
 
-   cat $CONFIG | grep -Ev '^#' | grep -Ev '^$' | sed -s 's/^[[:space:]]//' > /tmp/raspberryap
+   F_TMP="$(grep -Ev '^#|^$' $F_CONFIG | sed 's/^[[:space:]]*//')"
 
-   size_file=`cat /tmp/raspberryap | grep -Ev '^#' | grep -Ev '^$' | wc -l`
-   check=`cat /tmp/raspberryap | grep -Ev '^#' | grep -Ev '^$' | grep '=' | wc -l`
-
-   if [[ $check -lt $size_file ]]; then
-      echo "Errore nel file di configurazione"
-      exit 1
-   fi 
-
-   if cat /tmp/raspberryap | grep -Ev '^#' | grep -Ev '^$' | cut -d'=' -f 1 | grep -E '[a-z]' &> /dev/null; then
-      echo "Errore in una delle parole chiavi. Devono essere tutte in maiuscolo"
+   if echo $F_TMP | cut -d'=' -f 1 | grep '^[a-z]*$' &>/dev/null; then
+      echo "Errore. Le keyword evono essere tutte in maiuscolo"
       exit 1
    fi
 
+   while read key_word; do
+      keyword="$(echo "$key_word" | cut -d'=' -f1)"
 
-   yes=0
-   while read key_word;
-   do
-      keyword="`echo $key_word | cut -d'=' -f1`"
-      arguments_keyword="`echo $key_word | cut -d'=' -f2`"
+      case "$keyword" in
+      'INTERFACE')
+         INTERFACE="$(echo "$key_word" | grep "^\<$keyword\>" | cut -d'=' -f2)"
 
-      for count_word in `seq 0 $((${#KEY_WORD[@]}-1))`
-      do
-         echo $keyword | grep "^\<${KEY_WORD[$count_word]}\>" &> /dev/null
+         if [ -z $INTERFACE ]; then
+            echo "Valore nullo per '$keyword'"
+            exit 1
+         fi
 
-         if [ "$?" == "0" ]; then
+         check_interface
+         ;;
 
-            if [ -z "$arguments_keyword" ]; then
-               echo "Argomento vuoto per la keyword '$keyword'"
+      'ESSID')
+         ESSID_AP="$(echo "$key_word" | grep "^\<$keyword\>" | cut -d'=' -f2)"
+         if [ -z $ESSID_AP ]; then
+            echo "Valore nullo per '$keyword'"
+            exit 1
+         fi
+         ;;
+
+      'TYPE_ESSID')
+         TYPE_ESSID="$(echo "$key_word" | grep "^\<$keyword\>" | cut -d'=' -f2 | grep -E '^0$|^1$')"
+
+         if [ -z $TYPE_ESSID ]; then
+            echo "Valore nullo per '$keyword'"
+            exit 1
+         fi
+
+         if [ $TYPE_ESSID -gt 1 ]; then
+            echo "Valore non valido per '$keyword': accetta '0', '1'"
+            exit 1
+         fi
+         ;;
+
+      'WPA')
+         WPA="$(echo "$key_word" | grep "^\<$keyword\>" | cut -d'=' -f2 | grep -E '^.{8,63}$')"
+         if [ -z $WPA ]; then
+            echo "Valore non valido in '$keyword'. PS. (almeno 8 caratteri)"
+            exit 1
+         fi
+         ;;
+
+      'CHANNEL')
+         CHANNEL="$(echo "$key_word" | grep "^\<$keyword\>" | cut -d'=' -f2 | grep -E '^(^|[^0-9])[0-9]{1,2}($|[^0-9])')"
+         if [ -z $CHANNEL ]; then
+            echo "Valore non valido in '$keyword'"
+            exit 1
+         fi
+         ;;
+
+      'RX_MAX')
+         RX_MAX="$(echo "$key_word" | grep "^\<$keyword\>" | cut -d'=' -f2 | grep -E '^(^|[^0-9])[0-9]{1,2}($|[^0-9])')"
+         if [ -z $RX_MAX ]; then
+            echo "Valore non valido in '$keyword'"
+            exit 1
+         fi
+         ;;
+
+      'ESSID_CHECK')
+         arg_keyword="$(echo "$key_word" | grep "^\<$keyword\>" | cut -d'=' -f2)"
+         if [ -z $arg_keyword ]; then
+            echo "Valore nullo per '$keyword'"
+            exit 1
+         fi
+
+         ifs=$IFS
+         IFS=','
+         for essid in $(echo "$key_word" | grep "^\<$keyword\>" | cut -d'=' -f2); do
+            WPA_FILE="$(echo "$essid" | cut -d':' -f2)"
+
+            if [ ! -f "$WPA_FILE" ]; then
+               echo "File di configurazione wpa '$WPA_FILE' non trovato"
                exit 1
             fi
 
-            yes=1;
-            case "$keyword" in
-               INTERFACE)
-                  INTERFACE="`cat /tmp/raspberryap | grep "^\<INTERFACE\>" | cut -d'=' -f2`"
-                  check_interface
-                  ;;
+            ESSID_CHECK+=($essid)
+         done
+         IFS=$ifs
+         ;;
 
-               ESSID)
-                  ESSID_AP="`cat /tmp/raspberryap | grep "^\<ESSID\>" | cut -d'=' -f2`"
-                  ;;
+      'FORCE_RESCAN')
+         FORCE_RESCAN=$(echo "$key_word" | grep "^\<$keyword\>" | cut -d'=' -f2 | grep '^[0-9]*$')
 
-               TYPE_ESSID)
-                  TYPE_ESSID="`cat /tmp/raspberryap | grep "^\<TYPE_ESSID\>" | cut -d'=' -f2 | grep -E '^(^|[^0-9])[0-9]{1}($|[^0-9])'`"
-                  if [ -z $TYPE_ESSID ]; then
-                     echo "La keyword '$keyword' accetta solo 3 argomenti: '0', '1' e '2'"
-                     exit 1
-                  fi
-                  ;;
-
-               WPA)
-                  WPA="`cat /tmp/raspberryap | grep "^\<WPA\>" | cut -d'=' -f2 | grep -E '^.{8,63}$'`"
-                  if [ -z $WPA ]; then
-                     echo "Errore nella password. Deve essere di almeno 8 caratteri"
-                     exit 1
-                  fi
-                  ;;
-
-               CHANNEL)
-                  CHANNEL="`cat /tmp/raspberryap | grep "^\<CHANNEL\>" | cut -d'=' -f2 | grep -E '^(^|[^0-9])[0-9]{1,2}($|[^0-9])'`"
-                  if [ -z $CHANNEL ]; then
-                     echo "Errore impostazione canale"
-                     exit 1
-                  fi
-                  ;;
-
-               RX_MAX)
-                  RX_MAX="`cat /tmp/raspberryap | grep "^\<RX_MAX\>" | cut -d'=' -f2 | grep -E '^(^|[^0-9])[0-9]{1,2}($|[^0-9])'`"
-                  if [ -z $RX_MAX ]; then 
-                     echo "Errore nell'impostazione del segnale RX"
-                     exit 1
-                  fi
-                  ;;
-
-               ESSID_CHECK)
-                  ifs=$IFS
-                  IFS=','
-                  for essid in $(cat /tmp/raspberryap | grep "^\<ESSID_CHECK\>" | sed -s 's/[[:space:]]*,[[:space:]]*/,/g' |  cut -d'=' -f2)
-                  do
-                     WPA_FILE="`echo $essid | cut -d':' -f2`"
-                     if [ ! -f $WPA_FILE ]; then
-                        echo "File di configurazione wpa '$WPA_FILE' non trovato"
-                        exit 1
-                     fi
-
-                     ESSID_CHECK+=($essid)
-                  done
-                  IFS=$ifs
-                  ;;
-            esac
+         if [ -z $FORCE_RESCAN ]; then
+            echo "Valore nullo per '$keyword'"
+            exit 1
          fi
-      done
+         ;;
 
-      if [[ $yes -eq 0 ]]; then
-         echo "Errore. Key word '$keyword' non valida"
+      * | ?)
+         echo "Errore. Keyword '$keyword' non valida"
          exit 1
-      fi
-      yes=0
+         ;;
+      esac
+   done <<<$F_TMP
 
-   done < /tmp/raspberryap 
-
-   if [ -z $INTERFACE ] || [ -z $ESSID_AP ]; then
-      echo "Nel file di configurazione deve almeno esserci un interfaccia e un essid"
+   if [ -z $INTERFACE ] && [ -z $ESSID ]; then
+      echo "Manca l'opzione INTERFACE o ESSID nel file di configurazione"
       exit 1
-   fi 
+   fi
 }
 
 function check_interface() {
-   phy_interface="`iw dev | grep -B1 "$INTERFACE" | sed -s 's/#//' | grep "phy"`"
+   phy_interface="$(iw dev | grep -B1 "$INTERFACE" | head -n1 | sed 's/#//')"
 
-   iw $phy_interface info | grep "\<AP\>$" &> /dev/null
+   if ! find /sys/class/net/ ! -type d | grep "\<$INTERFACE\>" &>/dev/null; then
+      echo "L'interfaccia '$INTERFACE' non esiste"
+      exit 1
+   fi
+
+   iw $phy_interface info | grep "\<AP\>$" &>/dev/null
 
    if [ "$?" != "0" ]; then
       echo "L'interfaccia '$INTERFACE' non supporta la modalità AP"
       exit 1
    fi
-
-   if ! find /sys/class/net/ ! -type d | grep "\<$INTERFACE\>" &> /dev/null; then
-      echo "L'interfaccia '$INTERFACE' non esiste"
-      exit 1
-   fi
 }
 
-if [[ $EUID -ne 0 ]]; then
+function connection_ap() {
+   total_essid_check=${#ESSID_CHECK[@]}
+   ESSID_CONNECT=""
+
+   for essid in $(seq 0 $(($total_essid_check - 1))); do
+      essid_check="$(echo ${ESSID_CHECK[$essid]} | cut -d':' -f1)"
+
+      SCAN_RESULT="$(iwlist $INTERFACE scan 2>/dev/null | grep -B2 'ESSID' | grep -B2 "\<$essid_check\>" | expand | sed 's/^[[:space:]]*//')"
+      if [ ! -z "$SCAN_RESULT" ]; then
+         echo "* Trovato ESSID '$essid_check'"
+
+         signal_cap="$(echo "$SCAN_RESULT" | head -n1 | sed 's/^.*Signal level=//; s/[-a-zA-Z ]//g' | awk '{print $1}')"
+         if [ $signal_cap -gt $RX_MAX ]; then
+            echo "[!] Ricezione del segnale debole per l'essid '$essid_check'"
+         else
+            WPA_FILE="$(echo ${ESSID_CHECK[$essid]} | cut -d':' -f2)"
+            ESSID_CONNECT="$essid_check"
+            break
+         fi
+      fi
+   done
+
+   if [ ! -z $ESSID_CONNECT ]; then
+      wpa_supplicant -i $INTERFACE -c $WPA_FILE -B &>/dev/null && dhclient $INTERFACE
+
+      if [ "$?" == "0" ]; then
+         echo "* Connessione riuscita"
+      else
+         echo "[!] Errore nella connessione"
+         flush_interface
+         kill_service
+         return 1
+      fi
+
+   else
+      return 1
+   fi
+
+   return 0
+}
+
+function creation_ap() {
+   # `hostapd` Configuring
+   echo -e "interface=$INTERFACE\n" \
+      "driver=nl80211\n" \
+      "ssid=$ESSID_AP\n" \
+      "hw_mode=g\n" \
+      "channel=$CHANNEL\n" \
+      "auth_algs=1\n" \
+      "ignore_broadcast_ssid=$TYPE_ESSID" | sed 's/^[[:space:]]*//' >$F_CONFIG_HOSTAPD
+
+   if [ ! -z $WPA ]; then
+      echo -e "macaddr_acl=0\n" \
+         "wpa=2\n" \
+         "wpa_passphrase=$WPA\n" \
+         "wpa_key_mgmt=WPA-PSK\n" \
+         "wpa_pairwise=CCMP TKIP\n" \
+         "rsn_pairwise=CCMP" | sed 's/^[[:space:]]*//' >>$F_CONFIG_HOSTAPD
+   fi
+
+   # `dnsmasq` Configuring
+   echo -e "interface=$INTERFACE\n" \
+      "bind-interfaces\n" \
+      "dhcp-authoritative\n" \
+      "dhcp-range=192.168.2.2,192.168.2.254,3h\n" \
+      "dhcp-option=option:router,192.168.2.1\n" \
+      "server=192.168.2.1" | sed 's/^[[:space:]]*//' >$F_CONFIG_DNSMASQ
+
+   rm -rf $F_HOSTAPD_LOG
+   if hostapd -B $F_CONFIG_HOSTAPD -f $F_HOSTAPD_LOG && ifconfig $INTERFACE 192.168.2.1 netmask 255.255.255.0 && dnsmasq -C $F_CONFIG_DNSMASQ; then
+      echo "* Creazione AP riuscita"
+   else
+      echo "[!] Problema nella creazione dell'AP"
+      kill_service
+      flush_interface
+      return 1
+   fi
+
+   return 0
+}
+
+## MAIN ##
+if [ $EUID -ne 0 ]; then
    echo "Bisogna essere amminstratori per lanciare lo script"
    exit 1
 fi
 
+check_dependencies
+
 case "$1" in
+check_conf)
+   check_file_config || exit 1
+   ;;
 
-   check)
-      check_file_config
-      check_interface
-      check_dependencies
-      echo -e "\nOK\n" 
-      ;;
+start)
+   check_file_config || exit 1
 
-	start)
-      check_dependencies
-      check_file_config
-      check_interface
+   kill_service
+   flush_interface
 
-      # `dnsmasq` Configuring
-      echo -e "interface=$INTERFACE\n"\
-"driver=nl80211\n"\
-"ssid=$ESSID_AP\n"\
-"hw_mode=g\n"\
-"channel=$CHANNEL\n"\
-"auth_algs=1\n"\
-"ignore_broadcast_ssid=$TYPE_ESSID" > /etc/hostapd/hostapd.conf
+   connection_ap || creation_ap
 
-      if [ ! -z $WPA ]; then
-         echo -e "macaddr_acl=0\n"\
-"wpa=2\n"\
-"wpa_passphrase=$WPA\n"\
-"wpa_key_mgmt=WPA-PSK\n"\
-"wpa_pairwise=CCMP TKIP\n"\
-"rsn_pairwise=CCMP" >> /etc/hostapd/hostapd.conf
-      fi
+   if [ $FORCE_RESCAN -gt 0 ]; then
+      while [ 1 ]; do
+         echo "+ Riscansione tra $FORCE_RESCAN minuti..."
 
-      # `dnsmasq` Configuring
-      echo -e "interface=$INTERFACE\n"\
-"bind-interfaces\n"\
-"dhcp-authoritative\n"\
-"dhcp-range=192.168.2.2,192.168.2.254,3h\n"\
-"dhcp-option=option:router,192.168.2.1\n"\
-"server=192.168.2.1" > /etc/dnsmasq.conf
+         sleep $(($FORCE_RESCAN * 60))
 
-      flush_interface
-      kill_service
+         status=$(iwconfig wlan0 | expand | sed 's/[[:space:]]/\n/g; s/^[[:space:]]*//' | grep 'Mode:' | cut -d':' -f2)
+         if [ "$status" == "Master" ]; then
+            if [ $(grep '\-CONNECTED' $F_HOSTAPD_LOG | wc -l) -eq $(grep '\-DISCONNECTED' $F_HOSTAPD_LOG | wc -l) ]; then
+               echo "+ Spegnimento AP..."
+               kill_service
+               flush_interface
 
-      if [[ ${#ESSID_CHECK[@]} -ne 0 ]]; then
-         yes=0
+               ifconfig $INTERFACE down
+               iwconfig $INTERFACE mode managed
+               ifconfig $INTERFACE up
 
-         sleep 2
-         for essid in `seq 0 $((${#ESSID_CHECK[@]}-1))`
-         do
-            essid_check="`echo ${ESSID_CHECK[$essid]} | cut -d':' -f1`"
-
-            iwlist $INTERFACE scan | grep -B2 ESSID | grep -B2 "\<$essid_check\>" &> /tmp/information_ap_raspberryap
-            if [ "$?" == "0" ]; then
-               echo "[ Trovato ESSID '$essid_check' ]"
-
-               signal_cap="`cat /tmp/information_ap_raspberryap | grep Signal | expand | sed -se 's/[[:space:]]*//g; s/^.*Signallevel=//; s/[-a-zA-Z]//g'`"
-               if [[ $signal_cap -gt $RX_MAX ]]; then
-                  echo "[ ! Problema nella ricezione del segnale per l'essid '$essid_check'. Ricezione molto debole ]"
-
-               else 
-                  yes=1
-                  WPA_FILE="`echo ${ESSID_CHECK[$essid]} | cut -d':' -f2`"
-                  break
-               fi
-            fi 
-         done
-      fi
-      if [ $yes -eq 1 ]; then
-         wpa_supplicant -i $INTERFACE -c $WPA_FILE -B && dhclient $INTERFACE
-
-         if [ "$?" == "0" ]; then
-            echo "[ Connessione riuscita ]"
+               connection_ap || creation_ap
+            fi
          else
-            echo "[! Errore nella connessione ]"
-            flush_interface
-            kill_service
-            exit 1
+            if [ "$(iwconfig wlan0 | expand | sed 's/[[:space:]]/\n/g; s/^[[:space:]]*//' | grep ESSID | cut -d':' -f 2)" == "off/any" ]; then
+               dhclient -r $INTERFACE &>/dev/null
+               killall -g wpa_supplicant &>/dev/null
+               connection_ap || creation_ap
+            fi
          fi
+      done
+   fi
+   ;;
 
-      else
-         echo "[ Creazione ap ]"
+stop)
+   kill_service
+   flush_interface
+   ;;
 
-         hostapd -B /etc/hostapd/hostapd.conf && ifconfig $INTERFACE 192.168.2.1 netmask 255.255.255.0 && service dnsmasq restart
-         if [ "$?" == "0" ]; then
-            echo "[ Creazione AP riuscita ]"
-         else
-            echo "[ ! Problema nella creazione dell'AP ]" 
-            flush_interface
-            kill_service
-            exit 1
-         fi
-      fi
-      ;;
-
-	stop)
-      check_file_config
-		flush_interface
-		kill_service
-		;;
-
-   *)
-      help
-      exit 1
+*)
+   help
+   exit 1
+   ;;
 esac
 
 exit 0
