@@ -185,14 +185,14 @@ function check_file_config() {
 }
 
 function check_interface() {
-   phy_interface="$(iw dev | grep -B1 "$INTERFACE" | head -n1 | sed 's/#//')"
+   phy_interface="$(cat /sys/class/net/$INTERFACE/phy80211/name)"
 
    if ! find /sys/class/net/ ! -type d | grep "\<$INTERFACE\>" &>/dev/null; then
       echo "L'interfaccia '$INTERFACE' non esiste"
       exit 1
    fi
 
-   iw $phy_interface info | grep "\<AP\>$" &>/dev/null
+   iw $phy_interface info | grep 'AP$' &>/dev/null
 
    if [ "$?" != "0" ]; then
       echo "L'interfaccia '$INTERFACE' non supporta la modalità AP"
