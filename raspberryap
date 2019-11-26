@@ -8,20 +8,15 @@
 #### END INIT INFO
 set -u
 
-readonly F_CONFIG='/etc/raspberryap.conf'
-
 readonly F_CONFIG_DIR='/tmp/raspberryap'
-mkdir $F_CONFIG_DIR &>/dev/null
+readonly F_TMP_DIR="$F_CONFIG_DIR/tmp"
 
-readonly F_CONFIG_TMP="$F_CONFIG_DIR/tmp"
-mkdir $F_CONFIG_TMP &>/dev/null
-rm -rf $F_CONFIG_TMP/*
-
+readonly F_CONFIG='/etc/raspberryap.conf'
 readonly F_CONFIG_HOSTAPD="$F_CONFIG_DIR/hostapd.conf"
 readonly F_CONFIG_DNSMASQ="$F_CONFIG_DIR/dnsmasq.conf"
 
-readonly F_HOSTAPD_LOG="$F_CONFIG_TMP/hostapd.log"
-readonly F_TMP_CONFIG="$F_CONFIG_TMP/raspberryap.tmp"
+readonly F_HOSTAPD_LOG="$F_TMP_DIR/hostapd.log"
+readonly F_PID="$F_TMP_DIR/pid"
 
 readonly MAX_CHANNEL=13
 readonly KEY_WORD=('INTERFACE' 'TYPE_ESSID' 'ESSID' 'WPA' 'CHANNEL' 'ESSID_CHECK' 'RX_MAX' 'FORCE_RESCAN')
@@ -42,7 +37,7 @@ function flush_interface() {
    killall -g wpa_supplicant &>/dev/null
    ifdown $INTERFACE &>/dev/null
    ifconfig $INTERFACE down &>/dev/null
-   ip addr flush dev $INTERFACE
+   ip addr flush dev $INTERFACE &>/dev/null
    ifconfig $INTERFACE up &>/dev/null
 }
 
@@ -125,9 +120,14 @@ function check_file_config() {
          ;;
 
       'CHANNEL')
-         CHANNEL="$(echo "$key_word" | grep "^\<$keyword\>" | cut -d'=' -f2 | grep -E '^(^|[^0-9])[0-9]{1,2}($|[^0-9])')"
+         CHANNEL="$(echo "$key_word" | grep "^\<$keyword\>" | cut -d'=' -f2 | grep '^[0-9]*$')"
          if [ -z $CHANNEL ]; then
             echo "Valore non valido in '$keyword'"
+            exit 1
+         fi
+
+         if [ $CHANNEL -gt $MAX_CHANNEL ]; then
+            echo "Errore. Il valore CHANNEL deve essere compreso tra 1 e $MAX_CHANNEL"
             exit 1
          fi
          ;;
@@ -178,8 +178,13 @@ function check_file_config() {
       esac
    done <<<$F_TMP
 
-   if [ -z $INTERFACE ] && [ -z $ESSID ]; then
-      echo "Manca l'opzione INTERFACE o ESSID nel file di configurazione"
+   if [ -z $INTERFACE ]; then
+      echo "Manca l'opzione INTERFACE nel file di configurazione"
+      exit 1
+   fi
+
+   if [ -z $ESSID_AP ]; then
+      echo "Manca l'opzione ESSID nel file di configurazione"
       exit 1
    fi
 }
@@ -289,6 +294,14 @@ fi
 
 check_dependencies
 
+mkdir $F_CONFIG_DIR &>/dev/null
+mkdir $F_TMP_DIR &>/dev/null
+
+if [ $# -eq 0 ]; then
+   help
+   exit 1
+fi
+
 case "$1" in
 check_conf)
    check_file_config || exit 1
@@ -303,7 +316,7 @@ start)
    connection_ap || creation_ap
 
    if [ $FORCE_RESCAN -gt 0 ]; then
-      while [ 1 ]; do
+      (while [ 1 ]; do
          echo "+ Riscansione tra $FORCE_RESCAN minuti..."
 
          sleep $(($FORCE_RESCAN * 60))
@@ -328,16 +341,18 @@ start)
                connection_ap || creation_ap
             fi
          fi
-      done
+      done) &
+      echo $! >"$F_PID"
    fi
    ;;
 
 stop)
+   kill -TERM $(cat "$F_PID") &>/dev/null
    kill_service
    flush_interface
    ;;
 
-*)
+* | ?)
    help
    exit 1
    ;;

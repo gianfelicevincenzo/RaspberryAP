@@ -10,6 +10,9 @@ possibilità di collegarci ad esso. Inoltre questo sistema analizza anche la pot
 cui *RaspberryAP* dovrà connettersi: questo significa che se stiamo nel raggio d'azione dell' AP ma il
 "segnale" non è abbastanza ottimale per il collegamento, *RaspberryAP* la ignorera' e al suo posto
 creera' un access point.
+Un altra peculiarita' e' che se si abilita la ri-scansione automatica, lo script controllera' sempre se nei
+paragi e' disponibile almeno una delle reti inserite nel file di confiurazione, e in caso positivo spegnera'
+in modo automaticao la modalita' AP (se e' abilitata e se non e' collegato nessuno ovviamente) e cerchera' di collegarsi all Access Point appena trovato.
 
 # Dipendenze
 
