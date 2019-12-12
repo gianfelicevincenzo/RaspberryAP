@@ -212,7 +212,7 @@ function connection_ap() {
    for essid in $(seq 0 $(($total_essid_check - 1))); do
       essid_check="$(echo ${ESSID_CHECK[$essid]} | cut -d':' -f1)"
 
-      SCAN_RESULT="$(iwlist $INTERFACE scan 2>/dev/null | expand | grep -B2 'ESSID' | grep -B2 "\"\<$essid_check\>\"" | sed 's/^[[:space:]]*//')"
+      SCAN_RESULT="$(iwlist $INTERFACE scan 2>/dev/null | expand | grep -B2 'ESSID' | grep -B2 "\"\<$essid_check\>\"\$" | sed 's/^[[:space:]]*//')"
       if [ ! -z "$SCAN_RESULT" ]; then
          echo "* Trovato ESSID '$essid_check'"
 
