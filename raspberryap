@@ -336,8 +336,8 @@ start)
             fi
          else
             if [ "$(iwconfig wlan0 | expand | sed 's/[[:space:]]/\n/g; s/^[[:space:]]*//' | grep ESSID | cut -d':' -f 2)" == "off/any" ]; then
-               dhclient -r $INTERFACE &>/dev/null
                killall -g wpa_supplicant &>/dev/null
+               flush_interface
                connection_ap || creation_ap
             fi
          fi
