@@ -20,3 +20,4 @@ if [ -f /etc/init.d/raspberryap ]; then
    rm -rf /tmp/raspberryap
    systemctl daemon-reload
    exit 0
+   
