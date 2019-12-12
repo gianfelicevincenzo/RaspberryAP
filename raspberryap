@@ -21,13 +21,13 @@ readonly F_PID="$F_TMP_DIR/pid"
 readonly MAX_CHANNEL=13
 readonly KEY_WORD=('INTERFACE' 'TYPE_ESSID' 'ESSID' 'WPA' 'CHANNEL' 'ESSID_CHECK' 'RX_MAX' 'FORCE_RESCAN')
 
-INTERFACE=""
+INTERFACE=
 ESSID_CHECK=()
-WPA_FILE=""
+WPA_FILE=
 CHANNEL="$(($(($RANDOM % $MAX_CHANNEL)) + 1))"
-ESSID_AP=""
+ESSID_AP=
 TYPE_ESSID=0
-WPA=""
+WPA=
 RX_MAX=68
 FORCE_RESCAN=0
 
@@ -207,12 +207,12 @@ function check_interface() {
 
 function connection_ap() {
    total_essid_check=${#ESSID_CHECK[@]}
-   ESSID_CONNECT=""
+   ESSID_CONNECT=
 
    for essid in $(seq 0 $(($total_essid_check - 1))); do
       essid_check="$(echo ${ESSID_CHECK[$essid]} | cut -d':' -f1)"
 
-      SCAN_RESULT="$(iwlist $INTERFACE scan 2>/dev/null | grep -B2 'ESSID' | grep -B2 "\<$essid_check\>" | expand | sed 's/^[[:space:]]*//')"
+      SCAN_RESULT="$(iwlist $INTERFACE scan 2>/dev/null | expand | grep -B2 'ESSID' | grep -B2 "\"\<$essid_check\>\"" | sed 's/^[[:space:]]*//')"
       if [ ! -z "$SCAN_RESULT" ]; then
          echo "* Trovato ESSID '$essid_check'"
 
