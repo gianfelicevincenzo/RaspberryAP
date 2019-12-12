@@ -8,6 +8,7 @@ fi
 
 if [ -f /etc/init.d/raspberryap ]; then
    echo "Rimozione servizio"
+   service raspberryap stop
    systemctl disable raspberryap
    systemctl disable raspberryap.service
    systemctl enable hostapd

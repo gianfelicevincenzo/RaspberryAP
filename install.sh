@@ -23,6 +23,8 @@ chown root:root /etc/init.d/raspberryap
 update-rc.d raspberryap defaults
 systemctl enable raspberryap
 systemctl disable hostapd
+systemctl disable hostapd.service
 systemctl disable dnsmasq
+systemctl disable dnsmasq.service
 
 exit 0
