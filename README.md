@@ -37,14 +37,14 @@ Le keyword che andranno nel file di configurazione sono:
 
 | *Keyword* | *Descrizione* |
 | --- | --- |
-|**INTERFACE**|`<string>` ***Interfaccia da utilizzare per il collegamento/creazione dell'access point***|
-|**ESSID**|`<string>` ***ESSID da assegnare all'access point che RaspberryAP creerà***|
-|**CHANNEL**|`<int>` *Canale dell'access point creato. Se non impostato, il canale verrà scelto in maniera casuale*
-|**WPA**|`<string>` *Password da utilizzare per la creazione dell'access point. Anche se opzionale, SE NE CONSIGLIA L'USO*
-|**TYPE_ESSID**|`<int>` *Valore di visiblita' dell'ESSID dell'access point. '0' l' AP sarà visibile, '1' l'AP avrà l'ESSID nascosto*|
-|**ESSID_CHECK**|`<string>` *Tutti gli AP che il RaspberryAP controllera'. Si colleghera' al primo disponibile nei 'paragi'. In caso contrario verra' creato un AP. I vari AP vanno suddivisi con una ```,```. *Esempio:* ```ESSID_CHECK=Router1:/etc/wparouter.conf,Router2:/etc/wparouter2.conf,...```*|
-|**RX_MAX**|`<int>` *Valore intero. Specifica il minimo valore che il segnale dell AP, a cui ci colleghiamo, deve avere(specificati in 'ESSID_CHECK'). Il valore di default è 68dbm. Se il valore e' maggiore(e quindi sinonimo di cattiva qualità della connessione) il suddetto ESSID verrà ignorato*|
-|**FORCE_RESCAN**|`<int>` *Forza la riscansione. Il valore deve essere un numero intero che rappresentera' i minuti di "pausa" prima di ogni scansione*|
+|**INTERFACE**|`<string>`|***Interfaccia da utilizzare per il collegamento/creazione dell'access point***|
+|**ESSID**|`<string>`|***ESSID da assegnare all'access point che RaspberryAP creerà***|
+|**CHANNEL**|`<int>`|*Canale dell'access point creato. Se non impostato, il canale verrà scelto in maniera casuale*
+|**WPA**|`<string>`|*Password da utilizzare per la creazione dell'access point. Anche se opzionale, SE NE CONSIGLIA L'USO*
+|**TYPE_ESSID**|`<int>`|*Valore di visiblita' dell'ESSID dell'access point. '0' l' AP sarà visibile, '1' l'AP avrà l'ESSID nascosto*|
+|**ESSID_CHECK**|`<string>`|*Tutti gli AP che il RaspberryAP controllera'. Si colleghera' al primo disponibile nei 'paragi'. In caso contrario verra' creato un AP. I vari AP vanno suddivisi con una ```,```. *Esempio:* ```ESSID_CHECK=Router1:/etc/wparouter.conf,Router2:/etc/wparouter2.conf,...```*|
+|**RX_MAX**|`<int>`|*Specifica il minimo valore che il segnale dell AP, a cui ci colleghiamo, deve avere(specificati in 'ESSID_CHECK'). Il valore di default è 68dbm. Se il valore e' maggiore(e quindi sinonimo di cattiva qualità della connessione) il suddetto ESSID verrà ignorato*|
+|**FORCE_RESCAN**|`<int>`|*Forza la riscansione. Il valore deve essere un numero intero che rappresentera' i minuti di "pausa" prima di ogni scansione*|
 
 > ***Le keyword devono essere in maiuscolo!***
 
