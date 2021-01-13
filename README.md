@@ -35,8 +35,8 @@ RaspberryAP necessita di un file di configurazione '*raspberryap.conf*' collocat
 Le linee che iniziano con uno spazio o un '#' saranno ignorate.
 Le keyword che andranno nel file di configurazione sono:
 
-| *Keyword* | *Descrizione* |
-| --- | --- |
+| *Keyword* | *Type* | *Descrizione*
+| --- | --- | --- |
 |**INTERFACE**|`<string>`|***Interfaccia da utilizzare per il collegamento/creazione dell'access point***|
 |**ESSID**|`<string>`|***ESSID da assegnare all'access point che RaspberryAP creerà***|
 |**CHANNEL**|`<int>`|*Canale dell'access point creato. Se non impostato, il canale verrà scelto in maniera casuale*
