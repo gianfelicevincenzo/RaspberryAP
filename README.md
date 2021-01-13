@@ -32,7 +32,7 @@ Installare le dipendenze con:
 # Configurazione
 
 RaspberryAP necessita di un file di configurazione **raspberryap.conf** collocato in ```/etc```.
-Le linee che iniziano con uno ` ` o `#` saranno ignorate.
+Le linee che iniziano con uno `  `  o `#` saranno ignorate.
 Le keyword che andranno nel file di configurazione sono:
 
 | *Keyword* | *Type* | *Descrizione*
