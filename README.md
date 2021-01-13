@@ -31,7 +31,7 @@ Installare le dipendenze con:
 
 # Configurazione
 
-RaspberryAP necessita di un file di configurazione '*raspberryap.conf*' collocato in ```/etc```.
+RaspberryAP necessita di un file di configurazione **raspberryap.conf** collocato in ```/etc```.
 Le linee che iniziano con uno spazio o un '#' saranno ignorate.
 Le keyword che andranno nel file di configurazione sono:
 
