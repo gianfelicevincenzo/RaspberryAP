@@ -1,5 +1,5 @@
 # RaspberryAP 
-> *Persistent and intelligent AP for Raspberry Pi!*
+> *Persistent and intelligent AP for Raspberry Pi! (Pure BASH)*
 
 # Descrizione
 *RaspberryAP* ti permette di creare un access point in maniera facile e veloce sul tuo Raspberry!
